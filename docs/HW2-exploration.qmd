@@ -1,0 +1,240 @@
+---
+title: "Homework Assignment #2"
+subtitle: "Part II: Data Wrangling and EDA"
+author: "Vanessa Salgado (she/her)"
+date: 2024-02-03
+toc: true
+format: html
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r setup, include=FALSE} 
+knitr::opts_chunk$set(warning = FALSE, message = FALSE) 
+```
+
+#Project Question
+
+**Are climate credits are an effective way to measure carbon offset emissions?**
+
+# Part 2: Data wrangling & Exploratory data Viz using your own data
+
+Checklist for Assignment:
+
+## Part 2a
+
+-   [x] Create an file named, HW2-exploration.qmd within your lastName-eds240-HW4 repo and add appropriate YAML fields
+-   [x] Load necessary packages and read in your data
+-   [x Clean & wrangle your data
+-   [x] Create at least three (but of course feel free to create more!) exploratory visualizations (similar to plot #1 and #2 in Part I of this assignment).
+-   [] IMPORTANT: If you have a downloaded data file saved to your repo (e.g. you're not reading in your data directly from online, from a server, etc.) be sure to add your data folder / file to your .gitignore, particularly if this file is large.
+
+## Part 2a:
+
+```{r}
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+##                                load packages                             ----
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+library(tidyverse)
+library(ggplot2)
+library(ggExtra)
+library(gghighlight)
+library(janitor)
+library(naniar)
+library(RColorBrewer)
+library(here)
+library(forcats)
+
+library(raster)
+library(countrycode)
+
+
+```
+  
+  
+```{r}
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+##                                import data                               ----
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+# read in CO2 and Greenhouse emissions data
+# data do large to save
+co2_raw_data <- read_csv("https://nyc3.digitaloceanspaces.com/owid-public/data/co2/owid-co2-data.csv")
+
+
+# read in carbon offset projects
+carbon_offsets <- read_csv(here("data","Registry-Offsets-Database--v9.csv"))
+
+# read in carbon offsets years
+year_of_offsets <- read_csv(here("data", "year_of_project.csv"))
+
+# read in raster data
+# not sure if I will be using this
+# global_raster<-'MOD16A2_ET_0.05deg_GEO_2008M01.tif' 
+# imported_raster=raster(str_name)
+
+```
+
+
+```{r, echo=TRUE, eval=FALSE, include=TRUE}
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+##                          data cleaning & wrangling                       ----
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+##                          data cleaning & wrangling                       ----
+##                            for offsets datasets
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+# data cleaning for offsets
+carbon_offsets_clean <- carbon_offsets %>% 
+  janitor::clean_names(case = "snake") %>% 
+  replace_with_na_all(condition = ~.x %in% c(-99999, "#REF!", "N/a", "N/A", "NA")) %>% 
+  
+  # change char types to ints or doubles
+  mutate(total_credits_issued = as.numeric(gsub(",", "", total_credits_issued))) %>% 
+  mutate(total_credits_retired = as.numeric(gsub(",", "", total_credits_retired))) %>% 
+  mutate(total_credits_remaining = as.numeric(gsub(",", "", total_credits_remaining))) %>% 
+  mutate(total_buffer_pool_deposits = as.numeric(gsub(",", "", total_buffer_pool_deposits))) %>% 
+  mutate(first_year_of_project = as.factor(gsub(",", "", first_year_of_project))) %>% 
+  
+  # remove irregular year columns of the structure 2001...127
+  #select_if(~!any(grepl("\\d", .))) 
+  select(~matches("\\d"))
+  # select(-grep(pattern = "^[0-9]{4}\\.\\.\\.[0-9]{3}$", names(.), value = TRUE)) %>%
+  
+  
+  
+  # join with regular year data 
+  full_join(year_of_offsets, by = project_name)
+
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+##                          data cleaning & wrangling                       ----
+##                     for CO2 and Greenhouse emissions data
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+# data cleaning for 
+co2_clean <- co2_raw_data %>% 
+  replace_with_na_all(condition = ~.x %in% c(-99999, "#REF!", "N/a", "N/A", "NA")) %>% 
+  
+  # add continent column that corresponds to each country
+  mutate(continent = countrycode(sourcevar = country,
+                                 origin = "country.name",
+                                 destination = "continent")) %>% 
+
+  # drop countries that do not have a corresponding continent
+  filter(!(country %in% unique(countries_w_NA_continents$country))) %>% 
+  
+  # filter for years of interest or that coincide with the offsets data
+  # 1996 to 2023
+  filter(-year %in% c(1750:1995))
+  
+
+  
+```
+
+
+```{r}
+# data cleaning for offsets
+carbon_offsets_clean <- carbon_offsets %>% 
+  janitor::clean_names(case = "snake") %>% 
+  replace_with_na_all(condition = ~.x %in% c(-99999, "#REF!", "N/a", "N/A", "NA")) %>% 
+  
+  # change char types to ints or doubles
+  mutate(total_credits_issued = as.numeric(gsub(",", "", total_credits_issued))) %>% 
+  mutate(total_credits_retired = as.numeric(gsub(",", "", total_credits_retired))) %>% 
+  mutate(total_credits_remaining = as.numeric(gsub(",", "", total_credits_remaining))) %>% 
+  mutate(total_buffer_pool_deposits = as.numeric(gsub(",", "", total_buffer_pool_deposits))) %>% 
+  mutate(first_year_of_project = as.factor(gsub(",", "", first_year_of_project)))
+```
+  
+```{r}
+# data cleaning for 
+co2_clean <- co2_raw_data %>% 
+  replace_with_na_all(condition = ~.x %in% c(-99999, "#REF!", "N/a", "N/A", "NA")) %>% 
+  
+  # add continent column that corresponds to each country
+  mutate(continent = countrycode(sourcevar = country,
+                                 origin = "country.name",
+                                 destination = "continent")) %>% 
+
+  # drop countries that do not have a corresponding continent
+  filter(!(country %in% unique(countries_w_NA_continents$country))) %>% 
+  
+  # filter for years of interest or that coincide with the offsets data
+  # 1996 to 2023
+  filter(-year %in% c(1750:1995))
+```
+
+
+Create at least three (but of course feel free to create more!) exploratory visualizations (similar to plot #1 and #2 in Part I of this assignment).
+
+```{r}
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+##                         exploratory visualizations                       ----
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ first plot ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+# Credits issued by scope
+
+credits_by_scope_hist <- carbon_offsets_clean %>% 
+  group_by(scope) %>% 
+  mutate(scope = as.factor(scope)) %>% 
+  mutate(total_credits_issued = as.numeric(gsub(",", "", total_credits_issued))) %>% 
+  ggplot(aes(x = fct_reorder(scope, total_credits_issued, .na_rm = TRUE), y = total_credits_issued, fill = scope)) +
+  geom_col() +
+  coord_fixed(ratio = 1/100) +
+  coord_flip() +
+  theme_minimal()
+  
+
+credits_by_scope_hist
+
+# plot 2
+# credits issued by region
+
+credits_by_region_plot <- carbon_offsets_clean %>% 
+  group_by(region) %>% 
+  mutate(total_credits_issued = as.numeric(gsub(",", "", total_credits_issued))) %>% 
+  ggplot(aes(x =  total_credits_issued, y = region, fill = region)) +
+  geom_col() +
+  scale_x_continuous(labels = scales::comma) +
+  coord_fixed(ratio = 1/100) +
+  coord_flip() +
+  theme_minimal()
+
+credits_by_region_plot
+
+# plot 3 most retired year 
+
+table_join <- left_join(carbon_offsets_clean, year_of_offsets, by = "project_name")
+
+# stacked plot that shows Retirements by Reduction / Removal Over Time
+# retired_offsets_over_time <- table_join %>% 
+#   mutate(total_credits_retired = as.numeric(gsub(",", "", total_credits_retired))) %>% 
+#   group_by(reduction_removal) %>% 
+#   ggplot(aes(x = year, y = total_credits_retired, group = reduction_removal, fill = reduction_removal)) +
+#   geom_area(position = fill, alpha = .7)
+# 
+# retired_offsets_over_time
+```
+
+## Part 2b: After completing the above steps, answer the following questions:
+
+1.  *What have you learned about your data? Have any potentially interesting patterns emerged? (5-8 sentences)*
+I have learned that this data was very messy to begin with and it is important to know the exact definitions form the metadata. The CO2 emmisions data is a huge dataset but it combines all the metadata in one csv. I will need to 
+
+2.  *In HW #1, you outlined some questions that you wanted to answer using these data. Have you made any strides towards answering those questions? If yes, how so? If no, what next steps do you need to take (e.g. I need to create X plot type, I still need to track down Y data, I need to restructure existing data so that you can visualize it in Z ways, etc.)? (8-12 sentences)*
+
+I don't think that I have take concrete stride toward answering these questions. I have only explored what the offsets look like for each scope or region. I think this was an essential step to take so that I can see the sectors that are issued carbon credits to lower their CO2 emmissions. I need to see if these scopes are actually retiring/removing their credits i.e, reducing or removing carbon out of the atmosphere. Essentially are they delivering what they promise. 
+
+I need to restructure the years in the carbon offsets data so that it can read in years per each type of credit status i.e,(retired, removed, and remaining). 
+
+
+3.  *What challenges do you foresee encountering with your data? These can be data wrangling and / or visualization challenges. (4-6 sentences)*
+
+The carbon offsets was first downloaded as an excel sheet and when reading as a csv, NA values where incorrectly read in and values were shifted over in the wrong columns. The years are used as column variables which make it the hardest part to clean. 
+
+I need to figure out how to define carbon offset emissions reduction so that I can visualize how carbon credits compare to carbon emmissions.
