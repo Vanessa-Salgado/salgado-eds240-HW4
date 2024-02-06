@@ -27,7 +27,7 @@ Checklist for Assignment:
 -   [x] Load necessary packages and read in your data
 -   [x Clean & wrangle your data
 -   [x] Create at least three (but of course feel free to create more!) exploratory visualizations (similar to plot #1 and #2 in Part I of this assignment).
--   [] IMPORTANT: If you have a downloaded data file saved to your repo (e.g. you're not reading in your data directly from online, from a server, etc.) be sure to add your data folder / file to your .gitignore, particularly if this file is large.
+-   [x] IMPORTANT: If you have a downloaded data file saved to your repo (e.g. you're not reading in your data directly from online, from a server, etc.) be sure to add your data folder / file to your .gitignore, particularly if this file is large.
 
 ## Part 2a:
 
@@ -77,7 +77,7 @@ year_of_offsets <- read_csv(here("data", "year_of_project.csv"))
 ```
 
 
-```{r, echo=TRUE, eval=FALSE, include=TRUE}
+```{r, echo=TRUE, eval=FALSE}
 ##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 ##                          data cleaning & wrangling                       ----
 ##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -130,12 +130,10 @@ co2_clean <- co2_raw_data %>%
   # 1996 to 2023
   filter(-year %in% c(1750:1995))
   
-
-  
 ```
 
 
-```{r}
+```{r, include=FALSE}
 # data cleaning for offsets
 carbon_offsets_clean <- carbon_offsets %>% 
   janitor::clean_names(case = "snake") %>% 
@@ -150,21 +148,21 @@ carbon_offsets_clean <- carbon_offsets %>%
 ```
   
 ```{r}
-# data cleaning for 
+# data cleaning for co2 emmisions data 
 co2_clean <- co2_raw_data %>% 
   replace_with_na_all(condition = ~.x %in% c(-99999, "#REF!", "N/a", "N/A", "NA")) %>% 
   
   # add continent column that corresponds to each country
   mutate(continent = countrycode(sourcevar = country,
                                  origin = "country.name",
-                                 destination = "continent")) %>% 
+                                 destination = "continent"))
 
   # drop countries that do not have a corresponding continent
-  filter(!(country %in% unique(countries_w_NA_continents$country))) %>% 
+  #filter(!(country %in% unique(countries_w_NA_continents$country))) %>% 
   
   # filter for years of interest or that coincide with the offsets data
   # 1996 to 2023
-  filter(-year %in% c(1750:1995))
+  #filter(-year %in% c(1750:1995))
 ```
 
 
@@ -203,32 +201,38 @@ credits_by_region_plot <- carbon_offsets_clean %>%
   scale_x_continuous(labels = scales::comma) +
   coord_fixed(ratio = 1/100) +
   coord_flip() +
-  theme_minimal()
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) 
 
 credits_by_region_plot
 
-# plot 3 most retired year 
+# Plot 3:
+# Annual CO₂ emissions by continent
 
-table_join <- left_join(carbon_offsets_clean, year_of_offsets, by = "project_name")
+co2_clean %>% 
+  mutate(year = as.factor(year)) %>% 
+  filter(year %in% c(1996:2020)) %>% 
+  na.omit('continent') %>% 
+  ggplot(aes(x = year, y = co2, group= continent, fill = continent)) +
+  geom_area(position = "fill") +
+  scale_y_continuous(labels = scales::label_percent(scale = 100)) +
+  labs(title = "Annual CO2 emissions by continent",
+       x = "year", 
+       y = "Annual CO2 emissions") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) 
 
-# stacked plot that shows Retirements by Reduction / Removal Over Time
-# retired_offsets_over_time <- table_join %>% 
-#   mutate(total_credits_retired = as.numeric(gsub(",", "", total_credits_retired))) %>% 
-#   group_by(reduction_removal) %>% 
-#   ggplot(aes(x = year, y = total_credits_retired, group = reduction_removal, fill = reduction_removal)) +
-#   geom_area(position = fill, alpha = .7)
-# 
-# retired_offsets_over_time
 ```
 
 ## Part 2b: After completing the above steps, answer the following questions:
 
 1.  *What have you learned about your data? Have any potentially interesting patterns emerged? (5-8 sentences)*
-I have learned that this data was very messy to begin with and it is important to know the exact definitions form the metadata. The CO2 emmisions data is a huge dataset but it combines all the metadata in one csv. I will need to 
+
+I have learned that this data was very messy to begin with and it is important to know the exact definitions from the metadata. My data has column names that are particular to the carbon credits/offsets language that was difficult to familiarize with. The CO2 emissions data is a huge dataset but it combines all the metadata in one csv. I will need to go back a see if I further need to clean the data again. 
 
 2.  *In HW #1, you outlined some questions that you wanted to answer using these data. Have you made any strides towards answering those questions? If yes, how so? If no, what next steps do you need to take (e.g. I need to create X plot type, I still need to track down Y data, I need to restructure existing data so that you can visualize it in Z ways, etc.)? (8-12 sentences)*
 
-I don't think that I have take concrete stride toward answering these questions. I have only explored what the offsets look like for each scope or region. I think this was an essential step to take so that I can see the sectors that are issued carbon credits to lower their CO2 emmissions. I need to see if these scopes are actually retiring/removing their credits i.e, reducing or removing carbon out of the atmosphere. Essentially are they delivering what they promise. 
+ I have only explored what the offsets look like for each scope or region. I think this was an essential step to take so that I can see the sectors that are issued carbon credits to lower their CO2 emmissions. I need to see if these scopes are actually retiring/removing their credits i.e, reducing or removing carbon out of the atmosphere. Essentially are they delivering what they promise. 
 
 I need to restructure the years in the carbon offsets data so that it can read in years per each type of credit status i.e,(retired, removed, and remaining). 
 
@@ -238,3 +242,39 @@ I need to restructure the years in the carbon offsets data so that it can read i
 The carbon offsets was first downloaded as an excel sheet and when reading as a csv, NA values where incorrectly read in and values were shifted over in the wrong columns. The years are used as column variables which make it the hardest part to clean. 
 
 I need to figure out how to define carbon offset emissions reduction so that I can visualize how carbon credits compare to carbon emmissions.
+
+As for visualization aesthetics, I would like to choose a color palette to help with the aesthetics. 
+
+
+```{r, echo=TRUE, eval=FALSE, include=TRUE}
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+##                           scratch work for HW 2                          ----
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+library(tidyverse)
+credits_issued <- read_csv(here::here("data", "credits_issued_by_year.csv"))
+
+credits_retired <- read_csv(here::here("data", "credits_retired.csv"))
+
+credits_issued_long <- credits_issued %>% 
+  tidyr::pivot_longer(
+    cols = !c(project_id, reduction_removal),
+    names_to = "year",
+    values_to = "credits issued")
+
+credits_retired_long <- credits_retired %>% 
+  tidyr::pivot_longer(
+    cols = !c(project_id, reduction_removal) ,
+    names_to = "year",
+    values_to = "credits retired")
+
+# Potential Plot: Retirements by Reduction / Removal Over Time
+
+# stacked plot
+credits_retired_long %>% 
+  mutate(year = as.factor(year)) %>% 
+  ggplot(aes(x = year, y = `credits retired`, group = reduction_removal, fill = reduction_removal)) +
+  geom_area()
+
+# Potential Plot: Annual CO₂ emissions by world region 
+```
