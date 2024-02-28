@@ -1,0 +1,194 @@
+---
+title: "Homework Assignment #3"
+subtitle: "Part III: Drafting Visualiztions"
+author: "Vanessa Salgado (she/her)"
+date: 2024-02-27
+format:
+  html:
+    embed-resources: true
+    
+output:
+  html_document:
+    code_folding: show
+---
+
+# HW3 Questions
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(warning = FALSE, message = FALSE) 
+
+library(tidyverse)
+library(here)
+```
+
+## HW 3 Requirements
+
+1.  **Which option do you plan to pursue?**
+
+**ANSWER:** I plan to pursue a cohesive infographic-style visualization that includes at least three different visualizations
+
+If you choose option 2, you should have one overarching question and at least three sub-questions that each of your info graphic components answer.
+
+2.  **Restate your question(s). Has this changed at all since HW #1? If yes, how so?**
+
+**Answer:** My overarching question remains the same: Are carbon credits an effective way to measure carbon offset emissions?
+
+My 3 sub questions that I have for each graph are
+
+```         
+1.  Are carbon credits used in countries that most need it? What is the flow of carbon credits 
+
+
+2.  Are carbon credits retired in an adequate time frame? 
+
+
+3.  What scope or industries are acually using carbon credits to deter their carbon emissions?
+
+4. Is there a relationship between carbon credits retired and CO2 and Greenhouse emissions reduction? 
+```
+
+3.  **Explain which variables from your data set(s) you will use to answer your question(s).**
+
+**Answer:** I have two datasets. One that contains all carbon offset projects, credit issuances, and credit retirements listed globally by four major voluntary offset project registries. The other is global CO2 and Greenhouse emmissions. After wrangling the data I joined geographical attributes to the Carbon offsets dataset. This will help me visualize the flow of carbon credit issuances. \# Looking for Inspiration
+
+4.  **Find at least two data visualizations that you could (potentially) borrow / adapt pieces from.** Link to them or download and embed them into your .qmd file, and explain which elements you might borrow (e.g. the graphic form, legend design, layout, etc.).
+
+**Answer:** This treemap-like data visualization is very useful in portraying two groups and two behaviors (https://www.studioterp.nl/going-west-a-datavisualization-by-studio-terp/). The simplicity of the comparisons per country is something I can adapt when comparing the ratio of carbon credits per country and the overall emissions per country
+
+I like this look of hex forms to represent sections of a country. I think it would be a good way to summarize greenhouse emissions. The color palette is somthign I am struggling with. I appreciate these colors. The reds/yellow could symoblize carbon trends. Whereas the green color palette could represent the carbon credits issued. (https://github.com/z3tt/TidyTuesday?tab=readme-ov-file#week-201938-%EF%B8%8F-us-national-park-visits-by-dataworld)
+
+# Hand Drawn Visualizations
+
+5.  **Hand-draw your anticipated three visualizations**
+
+![](Sankey_HW3.jpeg){fig-alt="Sankey Diagram showing the flow of carbon credits"}
+
+![](Radar_HW3.jpeg){fig-alt="Radar Plot showing the Carbon Credit Assigned by Industry Scope"}
+
+![](Bar_HW3.jpeg){fig-alt="Bar Plot showing Credits Issued and Retired Over Time"}
+
+# Coding out the three visualiztions
+
+6.  **Mock up your visualizations using code**
+
+```{r}
+
+# importing libraries
+library(fmsb)
+
+library(tidyverse)
+library(ggplot2)
+library(ggExtra)
+library(gghighlight)
+library(janitor)
+library(naniar)
+library(RColorBrewer)
+library(here)
+library(forcats)
+
+library(raster)
+library(countrycode)
+
+
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+##                                import data                               ----
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+# read in CO2 and Greenhouse emissions data
+# data do large to save
+co2_raw_data <- read_csv("https://nyc3.digitaloceanspaces.com/owid-public/data/co2/owid-co2-data.csv")
+
+
+# read in carbon offset projects
+carbon_offsets <- read_csv(here("data","Registry-Offsets-Database--v9.csv"))
+
+# read in carbon offsets years
+year_of_offsets <- read_csv(here("data", "year_of_project.csv"))
+
+# read in raster data
+# not sure if I will be using this
+# global_raster<-'MOD16A2_ET_0.05deg_GEO_2008M01.tif' 
+# imported_raster=raster(str_name)
+```
+
+
+```{r, echo=TRUE, eval=FALSE}
+# cleaning up the data
+# note I will save the cleaned data next time in order to no run the data wrangling again
+
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+##                          data cleaning & wrangling                       ----
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+##                          data cleaning & wrangling                       ----
+##                            for offsets datasets
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+# data cleaning for offsets
+carbon_offsets_clean <- carbon_offsets %>% 
+  janitor::clean_names(case = "snake") %>% 
+  replace_with_na_all(condition = ~.x %in% c(-99999, "#REF!", "N/a", "N/A", "NA")) %>% 
+  
+  # change char types to ints or doubles
+  mutate(total_credits_issued = as.numeric(gsub(",", "", total_credits_issued))) %>% 
+  mutate(total_credits_retired = as.numeric(gsub(",", "", total_credits_retired))) %>% 
+  mutate(total_credits_remaining = as.numeric(gsub(",", "", total_credits_remaining))) %>% 
+  mutate(total_buffer_pool_deposits = as.numeric(gsub(",", "", total_buffer_pool_deposits))) %>% 
+  mutate(first_year_of_project = as.factor(gsub(",", "", first_year_of_project))) %>% 
+  
+  # remove irregular year columns of the structure 2001...127
+  #select_if(~!any(grepl("\\d", .))) 
+  select(~matches("\\d"))
+  # select(-grep(pattern = "^[0-9]{4}\\.\\.\\.[0-9]{3}$", names(.), value = TRUE)) %>%
+  
+  
+  # join with regular year data 
+  full_join(year_of_offsets, by = project_name)
+
+```
+
+```{r, include=FALSE}
+# data cleaning for offsets
+carbon_offsets_clean <- carbon_offsets %>% 
+  janitor::clean_names(case = "snake") %>% 
+  replace_with_na_all(condition = ~.x %in% c(-99999, "#REF!", "N/a", "N/A", "NA")) %>% 
+  
+  # change char types to ints or doubles
+  mutate(total_credits_issued = as.numeric(gsub(",", "", total_credits_issued))) %>% 
+  mutate(total_credits_retired = as.numeric(gsub(",", "", total_credits_retired))) %>% 
+  mutate(total_credits_remaining = as.numeric(gsub(",", "", total_credits_remaining))) %>% 
+  mutate(total_buffer_pool_deposits = as.numeric(gsub(",", "", total_buffer_pool_deposits))) %>% 
+  mutate(first_year_of_project = as.factor(gsub(",", "", first_year_of_project)))
+
+```
+
+```{r}
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+##                         Visualizations                       ----
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Radar plot ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+carbon_offsets_clean  %>% 
+  group_by(scope)  %>% 
+  summarize(total_credits = sum(total_credits_issued, na.rm = TRUE)) %>% 
+  pivot_wider(names_from = scope, values_from = total_credits)
+  # radarchart()
+```
+
+## Additional Questions
+
+Answer the following questions:
+
+7.  What challenges did you encounter or anticipate encountering as you continue to build / iterate on your visualizations in R?
+
+I ran into major problems with the radar plot. Manipulating the data format in order to be a good candidate for the radar plot was a huge challenge. I felt as if the data visuals were easy enough to draw out but when it came to coding the visuals, they did not live up to my expectations
+
+8.  What ggplot extension tools / packages do you need to use to build your visualizations? Are there any that we haven't covered in class that you'll be learning how to use for your visualizations?
+
+For the radar plot i used the {fmsb} package. For the Sankey diagrame i used the {networkD3}. 
+
+9.  What feedback do you need from the instructional team and / or your peers to ensure that your intended message is clear?
+
+I think this is a good starting point for my infographic. I would like the instruction team to critique my question. I might have to adjust it according to the plots I am creating. 
